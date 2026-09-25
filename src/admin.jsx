@@ -281,6 +281,7 @@ function Inventory() {
   const [version, setVersion] = useState(0),
     [search, setSearch] = useState(""),
     [type, setType] = useState(""),
+    [condition, setCondition] = useState(""),
     [page, setPage] = useState(1),
     [editing, setEditing] = useState(null),
     [archiving, setArchiving] = useState(null),
@@ -291,7 +292,7 @@ function Inventory() {
     loading,
     error: loadError,
   } = useResource(
-    `/cars?format=paged&limit=15&page=${page}&q=${encodeURIComponent(search)}&carType=${type}`,
+    `/cars?format=paged&limit=15&page=${page}&q=${encodeURIComponent(search)}&carType=${type}&condition=${condition}`,
     version,
   );
   const { notify } = useApp();
@@ -357,6 +358,18 @@ function Inventory() {
           <option value="buy">For sale</option>
           <option value="rent">For rent</option>
         </select>
+        <select
+          aria-label="Filter vehicle condition"
+          value={condition}
+          onChange={(e) => {
+            setCondition(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">All conditions</option>
+          <option value="new">Brand new</option>
+          <option value="used">Used</option>
+        </select>
         <span>{data?.total || 0} vehicles</span>
       </div>
       <Notice error>{error || loadError}</Notice>
@@ -384,7 +397,8 @@ function Inventory() {
                       <div>
                         <strong>{car.title}</strong>
                         <small>
-                          {car.year} · {car.fuelType}
+                          {car.year} · {car.fuelType} ·{" "}
+                          {car.condition === "new" ? "Brand new" : "Used"}
                           {car.isDemo ? " · Demo" : ""}
                         </small>
                       </div>
@@ -510,6 +524,7 @@ const blankCar = {
   year: new Date().getFullYear(),
   pricePerDay: "",
   carType: "buy",
+  condition: "used",
   fuelType: "petrol",
   transmission: "manual",
   bodyType: "Hatchback",
@@ -527,6 +542,7 @@ function VehicleEditor({ car, onClose, onSaved }) {
   const [form, setForm] = useState({
     ...blankCar,
     ...car,
+    condition: car.condition ?? "used",
     mot: car.mot?.slice(0, 10) || "",
     features: (car.features || []).join(", "),
   });
@@ -767,6 +783,12 @@ function VehicleEditor({ car, onClose, onSaved }) {
               </Field>
               <Field label="MOT expiry (optional)">
                 <input {...input("mot", { type: "date" })} />
+              </Field>
+              <Field label="Vehicle condition">
+                <select {...input("condition", { required: true })}>
+                  <option value="new">Brand new</option>
+                  <option value="used">Used</option>
+                </select>
               </Field>
             </div>
           </div>

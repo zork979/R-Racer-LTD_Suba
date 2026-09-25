@@ -94,6 +94,7 @@ export function carFields(body, existing = {}) {
     pricePerDay:
       Math.round(number(b.pricePerDay, "Price", 1, 10000000) * 100) / 100,
     carType: choice(b.carType, ["rent", "buy"], "listing type"),
+    condition: choice(b.condition ?? "used", ["new", "used"], "vehicle condition"),
     fuelType: choice(
       b.fuelType || "petrol",
       ["petrol", "diesel", "electric", "hybrid"],

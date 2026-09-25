@@ -176,7 +176,7 @@ export function CarCard({ car }) {
           <span>•</span>
           {car.bodyType || "Car"}
           <span>•</span>
-          {car.carType === "rent" ? "Self-drive rental" : "Pre-owned"}
+          {car.condition === "new" ? "Brand new" : "Used"}
         </div>
         <h3>
           <Link to={"/cars/" + car._id}>{car.title}</Link>

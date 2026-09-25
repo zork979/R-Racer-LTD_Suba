@@ -453,6 +453,16 @@ export function Fleet({ intent }) {
               ))}
             </select>
           </Field>
+          <Field label="Vehicle condition">
+            <select
+              value={params.get("condition") || ""}
+              onChange={(e) => change("condition", e.target.value)}
+            >
+              <option value="">All conditions</option>
+              <option value="new">Brand new</option>
+              <option value="used">Used</option>
+            </select>
+          </Field>
           <Field label="Body style">
             <select
               value={params.get("bodyType") || ""}
@@ -676,7 +686,8 @@ export function CarDetail() {
           <div>
             <Eyebrow>
               {car.year} · {car.bodyType} ·{" "}
-              {car.carType === "rent" ? "SELF-DRIVE" : "PRE-OWNED"}
+              {car.condition === "new" ? "BRAND NEW" : "USED"}
+              {car.carType === "rent" ? " · SELF-DRIVE" : ""}
             </Eyebrow>
             <h1>{car.title}</h1>
             <p>
@@ -720,7 +731,9 @@ export function CarDetail() {
                 [Fuel, "Fuel type", car.fuelType],
                 [Settings2, "Transmission", car.transmission],
                 [Users, "Seats", car.seats],
-                [ShieldCheck, "MOT", car.mot ? day(car.mot) : "Ask our team"],
+                [ShieldCheck, "MOT expiry", car.mot ? day(car.mot) : "Ask our team"],
+                [CheckCircle2, "Condition", car.condition === "new" ? "Brand new" : "Used"],
+                [Users, "Previous owners", car.previousOwners ?? "Ask our team"],
               ].map(([Icon, l, v]) => (
                 <div key={l}>
                   <Icon size={21} />
@@ -735,7 +748,6 @@ export function CarDetail() {
                 {car.description ||
                   "Contact our team for more information about this vehicle."}
               </p>
-              <p>Previous owners: {car.previousOwners ?? "Please enquire"}</p>
               {car.features?.length > 0 && (
                 <>
                   <h3>Features you’ll appreciate</h3>

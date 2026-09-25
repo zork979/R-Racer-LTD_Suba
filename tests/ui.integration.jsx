@@ -30,7 +30,9 @@ window.open=(url,target)=>{
 // JSDOM has no visual dialog renderer; keep native open/closed semantics for interaction tests.
 HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};
 HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');};
-const {render,screen,fireEvent,waitFor,cleanup,within}=await import('@testing-library/react');
+const {render,screen,fireEvent,waitFor,cleanup,within,configure}=await import('@testing-library/react');
+// These integration tests include real HTTP, password hashing and storage IO.
+configure({asyncUtilTimeout:5000});
 const nativeFetch=globalThis.fetch;
 
 test('React workflows against the real local API (DOM integration, not visual browser tests)',async t=>{
@@ -103,6 +105,8 @@ test('React workflows against the real local API (DOM integration, not visual br
     await t.test('vehicle editor uploads multiple files, reorders cover and persists a new listing',async()=>{
       mount('/admin/cars');await screen.findByRole('heading',{name:'Your collection.'});fireEvent.click(screen.getByRole('button',{name:'Add a vehicle'}));await screen.findByRole('heading',{name:'Add a vehicle'});
       await field('Vehicle title','UI Gallery Car');await field('Make','UI Make');await field('Model','Roadster');await field('Asking price (£)','15000');
+      assert.equal(screen.getByLabelText('Vehicle condition',{exact:true}).value,'used');
+      await field('Vehicle condition','new');await field('MOT expiry (optional)','2029-07-14');
       const bytes=await sharp({create:{width:120,height:100,channels:3,background:'#cd4433'}}).jpeg().toBuffer();
       const input=document.querySelector('.upload-zone input');fireEvent.change(input,{target:{files:[new window.File([bytes],'front.jpg',{type:'image/jpeg'}),new window.File([bytes],'rear.jpg',{type:'image/jpeg'})]}});
       for(let i=0;i<50&&document.querySelectorAll('.editor-gallery img').length!==2;i++)await new Promise(r=>setTimeout(r,100));
@@ -111,6 +115,7 @@ test('React workflows against the real local API (DOM integration, not visual br
       const second=document.querySelectorAll('.editor-gallery img')[1].src;fireEvent.click(screen.getByText('Set cover',{selector:'button'}));await waitFor(()=>assert.equal(document.querySelectorAll('.editor-gallery img')[0].src,second));
       fireEvent.click(screen.getByText('Save vehicle',{selector:'button'}));await waitFor(()=>assert.equal(document.querySelector('dialog[open]')===null,true),{timeout:5000});
       const saved=(await db.find('cars',{title:'UI Gallery Car'}))[0];assert.equal(saved.images.length,2);const image=await db.get('images',saved.images[0]);assert.ok(second.endsWith(image.url));
+      assert.equal(saved.condition,'new');assert.equal(saved.mot,'2029-07-14');
     });
     await t.test('editor removes an existing image and saves the remaining gallery',async()=>{
       await screen.findByRole('button',{name:'Edit UI Gallery Car'});fireEvent.click(screen.getByRole('button',{name:'Edit UI Gallery Car'}));await screen.findByRole('heading',{name:'Edit vehicle'});fireEvent.click(screen.getByLabelText('Remove photo 2'));fireEvent.click(screen.getByText('Save vehicle',{selector:'button'}));
@@ -123,12 +128,46 @@ test('React workflows against the real local API (DOM integration, not visual br
       await waitFor(()=>assert.equal(screen.getByRole('button',{name:'Save vehicle'}).disabled,false));fireEvent.click(screen.getByRole('button',{name:'Save vehicle'}));await waitFor(()=>assert.equal(Boolean(document.querySelector('dialog[open]')),false));
       const car=(await db.find('cars',{title:'UI Gallery Car'}))[0];assert.equal(car.images.length,2);assert.equal((await db.get('images',car.images[1])).url,'/media/cars2-1.jpg');
     });
+    await t.test('condition filters, preview and editor use the saved condition and MOT',async()=>{
+      const car=(await db.find('cars',{title:'UI Gallery Car'}))[0];
+      mount('/admin/cars');await screen.findByRole('button',{name:'Edit UI Gallery Car'});
+      await field('Filter vehicle condition','used');
+      await waitFor(()=>assert.equal(screen.queryByRole('button',{name:'Edit UI Gallery Car'}),null));
+      await field('Filter vehicle condition','new');await screen.findByRole('button',{name:'Edit UI Gallery Car'});
+      fireEvent.click(screen.getByRole('button',{name:'Edit UI Gallery Car'}));
+      assert.equal(screen.getByLabelText('Vehicle condition',{exact:true}).value,'new');
+      assert.equal(screen.getByLabelText('MOT expiry (optional)',{exact:true}).value,'2029-07-14');
+      mount('/cars/'+car._id);await screen.findByRole('heading',{name:'UI Gallery Car'});
+      const spec=document.querySelector('.spec-grid');assert.equal(spec.children.length,8);
+      assert.ok(within(spec).getByText('Brand new'));assert.ok(within(spec).getByText('14 Jul 2029'));
+      mount('/buy?condition=new');await screen.findByRole('heading',{name:'UI Gallery Car'});
+      assert.equal(screen.getByLabelText('Vehicle condition',{exact:true}).value,'new');
+      await waitFor(()=>assert.equal(document.querySelectorAll('.car-card').length,1));
+      assert.ok(within(document.querySelector('.car-card')).getByText(/Brand new/));
+      await field('Vehicle condition','used');
+      await waitFor(()=>assert.equal(screen.queryByRole('heading',{name:'UI Gallery Car'}),null));
+      fireEvent.click(screen.getByRole('button',{name:'Reset filters'}));
+      await screen.findByRole('heading',{name:'UI Gallery Car'});
+      assert.equal(screen.getByLabelText('Vehicle condition',{exact:true}).value,'');
+      mount('/admin/cars');await screen.findByRole('button',{name:'Edit UI Gallery Car'});
+      fireEvent.click(screen.getByRole('button',{name:'Edit UI Gallery Car'}));
+      await field('Vehicle condition','used');await field('MOT expiry (optional)','');
+      fireEvent.click(screen.getByRole('button',{name:'Save vehicle'}));
+      await waitFor(()=>assert.equal(Boolean(document.querySelector('dialog[open]')),false));
+      assert.equal((await db.get('cars',car._id)).condition,'used');
+      mount('/cars/'+car._id);await screen.findByRole('heading',{name:'UI Gallery Car'});
+      assert.ok(within(document.querySelector('.spec-grid')).getByText('Used'));
+      assert.ok(within(document.querySelector('.spec-grid')).getByText('Ask our team'));
+    });
     await t.test('admin email page explains customer sending and links to recipient settings',async()=>{
       mount('/admin/notifications');await screen.findByRole('heading',{name:'Your email enquiries.'});await screen.findByText('Customer email drafts');
       assert.equal(screen.getByRole('link',{name:'Edit enquiry recipient'}).getAttribute('href'),'/admin/settings');assert.equal(screen.queryByRole('button',{name:'Send test email'}),null);
     });
     await t.test('business settings form updates contact details',async()=>{
-      mount('/admin/settings');await screen.findByRole('heading',{name:'Make it your own.'});await field('Opening hours / viewing arrangements','Open by appointment only');await field('Enquiry recipient email','new-inbox@example.test');fireEvent.click(screen.getByRole('button',{name:'Save business details'}));await screen.findByText(/Settings saved/);assert.equal((await db.get('settings','business')).hours,'Open by appointment only');
+      const stored=await db.get('settings','business');
+      mount('/admin/settings');await screen.findByRole('heading',{name:'Make it your own.'});
+      await waitFor(()=>assert.equal(screen.getByLabelText('Opening hours / viewing arrangements',{exact:true}).value,stored.hours));
+      await field('Opening hours / viewing arrangements','Open by appointment only');await field('Enquiry recipient email','new-inbox@example.test');fireEvent.click(screen.getByRole('button',{name:'Save business details'}));await screen.findByText(/Settings saved/);assert.equal((await db.get('settings','business')).hours,'Open by appointment only');
     });
     await t.test('customer signs up and submits a rental request from the vehicle page',async()=>{
       cleanup();cookie='';setCsrf('');mount('/sign-up');await field('Your name','New Driver');await field('Email address','driver@ui.test');await field('Phone number','07000333333');await field('Password','UI-driver-password!');fireEvent.click(screen.getByRole('button',{name:'Create my account'}));await screen.findByRole('heading',{name:'Hello, New.'},{timeout:5000});

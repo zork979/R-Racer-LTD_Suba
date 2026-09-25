@@ -78,6 +78,40 @@ test('Dealership API integration suite',async t=>{
       const d=await request({},'/cars?format=paged&brand=Test&carType=rent&maxPrice=50');assert.equal(d.total,1);assert.equal(d.cars[0]._id,car._id);
       assert.equal((await request({},'/cars?q=nonexistent')).length,0);assert.ok((await request({},'/catalog')).brands.includes('Test'));
     });
+    await t.test('vehicle condition and MOT persist, validate and filter before pagination',async()=>{
+      assert.equal(car.condition,'used');
+      const saved=(await request(admin,'/cars/'+car._id,'PUT',{condition:'new',mot:'2029-04-12'})).car;
+      assert.equal(saved.condition,'new');assert.equal(saved.mot,'2029-04-12');
+      await request(admin,'/cars/'+car._id,'PUT',{featured:false});
+      const fresh=await request({},'/cars/'+car._id);
+      assert.equal(fresh.condition,'new');assert.equal(fresh.mot,'2029-04-12');
+      assert.equal((await db.get('cars',car._id)).condition,'new');
+      const filtered=await request({},'/cars?condition=new&carType=rent&brand=Test&format=paged&limit=1');
+      assert.equal(filtered.total,1);assert.equal(filtered.cars[0]._id,car._id);
+      assert.equal((await request({},'/cars?condition=used')).length,0);
+      assert.equal((await request({},'/cars?condition=new&carType=buy')).length,0);
+      for(const condition of ['damaged','',true])await request(admin,'/cars/'+car._id,'PUT',{condition},400);
+      await request({},'/cars?condition=damaged','GET',undefined,400);
+      await request(admin,'/cars/'+car._id,'PUT',{mot:'2029-02-30'},400);
+      await request(admin,'/cars/'+car._id,'PUT',{condition:'used',mot:null});
+      const cleared=await request({},'/cars/'+car._id);
+      assert.equal(cleared.condition,'used');assert.equal(cleared.mot,null);
+    });
+    await t.test('older inventory remains visible as used without changing stored data',async()=>{
+      const { _id,condition,...fields }=await db.get('cars',car._id);
+      const legacy=await db.create('cars',{...fields,title:'Legacy vehicle',images:[]});
+      try{
+        assert.equal((await request({},'/cars/'+legacy._id)).condition,'used');
+        const filtered=await request({},'/cars?condition=used&q=Legacy&format=paged&limit=1');
+        assert.equal(filtered.total,1);assert.equal(filtered.cars[0]._id,legacy._id);
+        assert.equal((await db.get('cars',legacy._id)).condition,undefined);
+        await db.update('cars',legacy._id,{condition:null});
+        assert.equal((await request({},'/cars?condition=used&q=Legacy')).length,1);
+        const updated=await request(admin,'/cars/'+legacy._id,'PUT',{condition:'new'});
+        assert.equal(updated.car.condition,'new');
+        assert.equal((await request({},'/cars?condition=used&q=Legacy')).length,0);
+      }finally{await db.remove('cars',legacy._id);}
+    });
     await t.test('shortlists persist and can be toggled',async()=>{
       assert.equal((await request(user,'/favorites/'+car._id,'POST')).favorites.length,1);assert.equal((await request(user,'/favorites')).length,1);
       assert.equal((await request(user,'/favorites/'+car._id,'POST')).favorites.length,0);

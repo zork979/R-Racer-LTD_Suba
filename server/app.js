@@ -199,6 +199,7 @@ export function createApp(db, c) {
     return {
       ...car,
       images: images.map((i) => ({ _id: i._id, url: i.url })),
+      condition: car.condition ?? "used",
       bodyType: car.bodyType || "Hatchback",
       features: car.features || [],
     };
@@ -418,7 +419,13 @@ export function createApp(db, c) {
     res.json({ brands: [...new Set(cars.map((car) => car.brand))].sort() });
   });
   app.get("/api/cars", async (req, res) => {
-    let cars = (await db.find("cars")).filter((car) => !car.deletedAt);
+    // Older listings have no condition field. Normalise before filtering and
+    // pagination, without rewriting stock or requiring a database migration.
+    let cars = (await db.find("cars"))
+      .filter((car) => !car.deletedAt)
+      .map((car) => ({ ...car, condition: car.condition ?? "used" }));
+    if (req.query.condition)
+      choice(req.query.condition, ["new", "used"], "vehicle condition");
     const q = String(req.query.q || "")
       .trim()
       .toLowerCase()
@@ -429,6 +436,7 @@ export function createApp(db, c) {
       );
     for (const field of [
       "carType",
+      "condition",
       "brand",
       "fuelType",
       "transmission",
