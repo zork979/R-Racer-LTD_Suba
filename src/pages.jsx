@@ -112,7 +112,7 @@ export function Home() {
               <option value="">No maximum</option>
               {(intent === "rent"
                 ? [50, 75, 100, 150, 250]
-                : [5000, 10000, 15000, 20000, 30000]
+                : [2000, 3000, 4000, 5000, 10000, 15000, 20000, 30000]
               ).map((p) => (
                 <option key={p} value={p}>
                   Up to {money(p)}

@@ -1231,9 +1231,26 @@ footer {
   gap: 38px;
   align-items: start;
 }
+/* Let the gallery shrink inside the grid; only its thumbnail strip scrolls. */
+.detail-layout > *,
+.detail-heading > div,
+.gallery {
+  min-width: 0;
+}
+.gallery {
+  width: 100%;
+  max-width: 100%;
+}
+.detail-heading h1,
+.detail-page .breadcrumbs,
+.detail-page .dialog-heading h2 {
+  overflow-wrap: anywhere;
+}
 .main-photo {
+  display: block;
   position: relative;
   width: 100%;
+  min-width: 0;
   aspect-ratio: 1.5;
   padding: 0;
   background: var(--cream);
@@ -1242,6 +1259,8 @@ footer {
   overflow: hidden;
 }
 .main-photo img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   transition: transform 0.5s;
@@ -1263,8 +1282,12 @@ footer {
 }
 .thumbnails {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   gap: 12px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
   margin-top: 12px;
   padding-bottom: 7px;
 }
@@ -1272,6 +1295,7 @@ footer {
   width: 96px;
   height: 67px;
   flex-shrink: 0;
+  scroll-snap-align: start;
   padding: 3px;
   border: 1px solid transparent;
   background: none;
@@ -1287,7 +1311,7 @@ footer {
 }
 .spec-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   margin-top: 32px;
   border: 1px solid var(--line);
@@ -1295,10 +1319,11 @@ footer {
   background: #fff;
 }
 .spec-grid > div {
+  min-width: 0;
   padding: 24px;
   border-right: 1px solid var(--line);
   display: grid;
-  grid-template-columns: 28px 1fr;
+  grid-template-columns: 28px minmax(0, 1fr);
   gap: 7px 9px;
 }
 .spec-grid > div:nth-child(3n) {
@@ -1316,6 +1341,7 @@ footer {
   color: var(--muted);
 }
 .spec-grid strong {
+  overflow-wrap: anywhere;
   font-size: 12px;
   font-weight: 500;
   text-transform: capitalize;
@@ -1339,10 +1365,12 @@ footer {
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
 .features-list > li {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1360,6 +1388,16 @@ footer {
   position: sticky;
   top: 107px;
   box-shadow: 0 8px 35px #20271d07;
+}
+.booking-card .button {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.booking-card .field,
+.booking-card input,
+.booking-card textarea {
+  min-width: 0;
 }
 .booking-price {
   padding-bottom: 22px;
@@ -2917,7 +2955,7 @@ main {
     align-self: center;
   }
   .detail-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .booking-card {
     position: static;
@@ -3483,7 +3521,7 @@ main {
     padding: 10px 13px;
   }
   .spec-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: 23px;
   }
   .spec-grid > div {
@@ -3500,10 +3538,10 @@ main {
     border-bottom: 1px solid var(--line);
   }
   .spec-grid strong {
-    font-size: 11px;
+    font-size: 12px;
   }
   .spec-grid small {
-    font-size: 9px;
+    font-size: 10px;
   }
   .detail-description p {
     font-size: 13px;
@@ -3539,6 +3577,18 @@ main {
   }
   .main-photo {
     aspect-ratio: 1.4;
+  }
+  .thumbnails {
+    gap: 8px;
+  }
+  .thumbnails > button {
+    width: 76px;
+    height: 56px;
+  }
+  .detail-page input,
+  .detail-page select,
+  .detail-page textarea {
+    font-size: 16px;
   }
   .contact-layout {
     grid-template-columns: 1fr;
@@ -4603,4 +4653,7 @@ main {
 @media (max-width: 540px) {
   .email-draft-actions { flex-direction: column; }
   .email-draft-actions .button { width: 100%; }
+  .detail-page .booking-card .form-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .detail-page .price-breakdown { flex-wrap: wrap; gap: 8px 16px; }
+  .detail-page .features-list { grid-template-columns: minmax(0, 1fr); }
 }
