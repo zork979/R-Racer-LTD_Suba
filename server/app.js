@@ -97,7 +97,16 @@ export function createApp(db, c) {
               "http://127.0.0.1:8000",
             ]),
       ]);
-      if (!allowed.has(req.headers.origin))
+      // Also accept requests from the site's own address (same-origin), so a
+      // wrong or not-yet-updated APP_URL cannot block logins on the live host.
+      // Browsers set Origin to the page's site, so other websites still fail.
+      let originHost = "";
+      try { originHost = new URL(req.headers.origin).host.toLowerCase(); } catch {}
+      const ownHosts = [req.headers.host, c.trustProxy ? req.headers["x-forwarded-host"] : ""]
+        .flatMap((h) => String(h || "").split(","))
+        .map((h) => h.trim().toLowerCase())
+        .filter(Boolean);
+      if (!allowed.has(req.headers.origin) && !(originHost && ownHosts.includes(originHost)))
         return res
           .status(403)
           .json({ message: "This request origin is not allowed." });

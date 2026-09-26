@@ -19,8 +19,11 @@ export async function initialise(db, c) {
     c.adminEmail &&
     !(await db.find("users", { email: c.adminEmail })).length
   ) {
+    if (!c.adminPassword)
+      throw new Error(
+        `No administrator account for ADMIN_EMAIL (${c.adminEmail}) exists in the database yet. Copy your existing data with "npm run supabase:migrate" on your computer, or set ADMIN_PASSWORD (at least 12 characters) to create a new administrator.`,
+      );
     if (
-      !c.adminPassword ||
       c.adminPassword.length < 12 ||
       Buffer.byteLength(c.adminPassword) > 72
     )

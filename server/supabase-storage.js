@@ -36,7 +36,11 @@ export function createImageStorage(c) {
       return this.check();
     },
     async put(objectPath, bytes, mime) {
-      const { error } = await files.upload(objectPath, bytes, { contentType: mime, cacheControl: '31536000', upsert: false });
+      // sharp 0.35+ returns Buffers backed by a SharedArrayBuffer, which fetch()
+      // refuses as a request body ("SharedArrayBuffer is not allowed"). Copy the
+      // bytes into an ordinary Buffer so image uploads reach Supabase Storage.
+      const body = Buffer.from(bytes);
+      const { error } = await files.upload(objectPath, body, { contentType: mime, cacheControl: '31536000', upsert: false });
       if (error) throw storageError('upload', error);
     },
     async get(objectPath) {

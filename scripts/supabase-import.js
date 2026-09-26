@@ -61,13 +61,22 @@ export async function importSnapshot(snapshot,c,{pool:suppliedPool,storage:suppl
     const previous=await client.query('SELECT id FROM rracer.migrations WHERE id=$1',[marker]);
     if(previous.rowCount){await client.query('ROLLBACK');return {alreadyImported:true,counts:snapshot.counts,images:snapshot.media.length};}
     // Block concurrent application writes and refuse a populated destination.
+    // The website creates default business settings when it first starts; those
+    // automatic rows (and nothing else) are replaced by the imported settings.
+    const bootstrapSettings=['business','demo-seeded'];
     for(const entity of entities) {
       await client.query(`LOCK TABLE rracer."${entity}" IN SHARE ROW EXCLUSIVE MODE`);
       const n=await client.query(`SELECT count(*)::int AS n FROM rracer."${entity}"`);
-      if(n.rows[0].n)throw new Error('Destination already contains application records. Import into an empty R Racer schema before starting the website; no existing records were overwritten.');
+      if(!n.rows[0].n)continue;
+      if(entity==='settings'){
+        const other=await client.query('SELECT count(*)::int AS n FROM rracer.settings WHERE NOT (id = ANY($1))',[bootstrapSettings]);
+        if(!other.rows[0].n)continue;
+      }
+      throw new Error('Destination already contains application records. Import into an empty R Racer schema before starting the website; no existing records were overwritten.');
     }
     const existing=await client.query('SELECT count(*)::int AS n FROM rracer.media');
     if(existing.rows[0].n)throw new Error('Destination already contains media metadata. Use a fresh project or restore a complete backup; migration will not overwrite it.');
+    await client.query('DELETE FROM rracer.settings WHERE id = ANY($1)',[bootstrapSettings]);
     for(const m of snapshot.media) {
       const hash=sha256(m.bytes), objectPath=`imports/${snapshot.fingerprint}/${m.id}`;
       try{await storage.put(objectPath,m.bytes,m.mime);uploaded.push(objectPath);}

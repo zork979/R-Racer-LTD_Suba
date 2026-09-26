@@ -81,6 +81,17 @@ function filterSql(query, values) {
   return build(query);
 }
 
+export async function installSchema(pool) {
+  // The migration is additive and safe to rerun; it never deletes data.
+  const sql = await readFile(new URL('../supabase/migrations/001_rracer.sql', import.meta.url), 'utf8');
+  const client = await pool.connect();
+  try {
+    await client.query('SELECT pg_advisory_lock(727223, 1)');
+    try { await client.query(sql); }
+    finally { await client.query('SELECT pg_advisory_unlock(727223, 1)').catch(() => {}); }
+  } finally { client.release(); }
+}
+
 export async function openSupabaseDatabase(c, { pool: suppliedPool, storage: suppliedStorage } = {}) {
   const pool = suppliedPool || await createPostgresPool(c);
   const storage = suppliedStorage || createImageStorage(c);
@@ -88,8 +99,12 @@ export async function openSupabaseDatabase(c, { pool: suppliedPool, storage: sup
   const query = (sql, values) => (context.getStore()?.client || pool).query(sql, values);
   try {
     const ready = await pool.query("SELECT to_regclass('rracer.migrations') AS ready");
-    if (!ready.rows[0].ready) throw new Error('Supabase schema is not installed. Run npm run supabase:setup first.');
-    await storage.check();
+    if (!ready.rows[0].ready) {
+      console.log('Supabase schema not found; installing the R Racer tables (first start only).');
+      await installSchema(pool);
+    }
+    // setup() creates the private image bucket if it is missing, then verifies it.
+    await (storage.setup ? storage.setup() : storage.check());
   } catch (e) { if (!suppliedPool) await pool.end(); throw e; }
   const db = {
     driver: 'supabase',
