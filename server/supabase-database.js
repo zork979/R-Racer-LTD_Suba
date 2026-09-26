@@ -1,8 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomBytes, createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import tls from 'node:tls';
 import pg from 'pg';
 import { createImageStorage } from './supabase-storage.js';
+import { SUPABASE_ROOT_CA_2021 } from './supabase-ca.js';
 
 export const entities = ['users','cars','images','bookings','slots','enquiries','settings','audit','sessions','notifications'];
 const table = name => {
@@ -10,14 +12,41 @@ const table = name => {
   return `rracer."${name}"`;
 };
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+// Rebuild PEM certificates from text whose line breaks were lost or escaped,
+// e.g. when pasted into a single-line hosting environment variable.
+export function normalisePem(text) {
+  const blocks = String(text || '').replaceAll('\\n', '\n')
+    .match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) || [];
+  return blocks.map(block => {
+    const body = block.replace(/-----(BEGIN|END) CERTIFICATE-----/g, '').replace(/\s+/g, '');
+    return `-----BEGIN CERTIFICATE-----\n${body.match(/.{1,64}/g).join('\n')}\n-----END CERTIFICATE-----\n`;
+  });
+}
+async function extraCertificates(c) {
+  if (c.supabaseCaCert?.trim()) {
+    const certs = normalisePem(c.supabaseCaCert);
+    if (!certs.length) throw new Error('SUPABASE_CA_CERT does not contain a PEM certificate. Leave it empty to use the bundled Supabase certificate.');
+    return certs;
+  }
+  if (c.supabaseCaFile?.trim()) {
+    try { return normalisePem(await readFile(c.supabaseCaFile, 'utf8')); } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+      console.warn(`SUPABASE_CA_CERT_PATH (${c.supabaseCaFile}) was not found on this server; using the bundled Supabase root certificate.`);
+    }
+  }
+  return [];
+}
 export async function postgresOptions(c) {
   const url = new URL(c.supabaseDatabaseUrl);
   // pg's URL SSL options otherwise override our explicit certificate verification.
   for (const key of ['sslmode','sslcert','sslkey','sslrootcert']) url.searchParams.delete(key);
-  const ca = c.supabaseCaCert?.replaceAll('\\n','\n') || (c.supabaseCaFile ? await readFile(c.supabaseCaFile,'utf8') : undefined);
+  // Supabase signs database certificates with its own root CA, which Node.js does
+  // not trust by default. Trust it alongside Node's standard public roots, and keep
+  // full certificate and hostname verification switched on.
+  const ca = c.supabaseSsl === false ? [] : [...await extraCertificates(c), SUPABASE_ROOT_CA_2021, ...tls.rootCertificates];
   return {
     connectionString: url.toString(), max: c.supabasePoolMax || 5,
-    ssl: c.supabaseSsl === false ? false : { rejectUnauthorized: true, ...(ca ? { ca } : {}) },
+    ssl: c.supabaseSsl === false ? false : { rejectUnauthorized: true, ca },
     connectionTimeoutMillis: 15000, idleTimeoutMillis: 30000,
     statement_timeout: 30000, application_name: 'rracer',
   };
