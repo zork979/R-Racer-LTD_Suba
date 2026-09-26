@@ -2,7 +2,12 @@ import { config } from "./config.js";
 import { openDatabase } from "./database.js";
 import { initialise } from "./seed.js";
 import { createApp } from "./app.js";
-try {
+
+// Hostinger's LiteSpeed runner (lsnode.js) loads this entry file with
+// require(). Node.js can only require() an ES module when nothing in its
+// import graph uses top-level await, so all asynchronous startup work lives
+// inside start() instead of at the top level of this file.
+async function start() {
   const c = config();
   const db = await openDatabase(c);
   await initialise(db, c);
@@ -11,7 +16,7 @@ try {
     console.log(`R Racer is ready at ${c.appUrl} (${c.driver}).`),
   );
   let closing = false;
-  async function stop() {
+  function stop() {
     if (closing) return;
     closing = true;
     server.close(async () => {
@@ -22,7 +27,9 @@ try {
   }
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
-} catch (e) {
+}
+
+start().catch((e) => {
   console.error("Startup failed:", e.message);
   process.exitCode = 1;
-}
+});
