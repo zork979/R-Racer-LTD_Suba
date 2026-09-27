@@ -236,20 +236,27 @@ function Header({ user, logout, settings }) {
         <div className="container nav-inner">
           <Logo />
           <nav
-            className={open ? "nav-links open" : "nav-links"}
-            aria-label="Main navigation"
-          >
-            <NavLink to="/" end>
-              Home
-            </NavLink>
-            <NavLink to="/buy">Buy a car</NavLink>
-            <NavLink to="/rent">Rent a car</NavLink>
-            <NavLink to="/about">Our story</NavLink>
-            <NavLink to="/contact">Contact</NavLink>
-            {user?.role === "admin" && (
-              <NavLink to="/admin/dashboard">Dashboard</NavLink>
-            )}
-          </nav>
+  className={open ? "nav-links open" : "nav-links"}
+  aria-label="Main navigation"
+>
+  <NavLink to="/" end>
+    Home
+  </NavLink>
+  <NavLink to="/buy">Buy a car</NavLink>
+  <NavLink to="/rent">Rent a car</NavLink>
+  <NavLink to="/about">Our story</NavLink>
+  <NavLink to="/contact">Contact</NavLink>
+<a
+  href="https://www.autotrader.co.uk/dealers/cheshire/dukinfield/r-racer-ltd-10046816"
+  target="_blank"
+  rel="noopener noreferrer"
+>
+  Auto Trader
+</a>
+{user?.role === "admin" && (
+  <NavLink to="/admin/dashboard">Dashboard</NavLink>
+)}
+</nav>
           <div className="nav-actions">
             <Link to="/saved" className="nav-heart" aria-label="Saved cars">
               <Heart size={19} />
