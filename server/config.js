@@ -46,6 +46,7 @@ export function config(overrides = {}) {
     smtpUser: process.env.SMTP_USER?.trim(),
     smtpPass: process.env.SMTP_PASS,
     mailFrom: process.env.MAIL_FROM,
+<<<<<<< HEAD
     mysqlHost: process.env.MYSQL_HOST || process.env.DB_HOST || "127.0.0.1",
     mysqlPort: Number(process.env.MYSQL_PORT || process.env.DB_PORT || 3306),
     mysqlUser: process.env.MYSQL_USER || process.env.DB_USER,
@@ -55,6 +56,8 @@ export function config(overrides = {}) {
     mysqlPoolMax: Number(process.env.MYSQL_POOL_MAX || process.env.DB_POOL_MAX || 10),
     mysqlSsl: process.env.MYSQL_SSL === "true",
     maintenanceMode: process.env.MAINTENANCE_MODE === "true" || process.env.MAINTENANCE_MODE === "1",
+=======
+>>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
     ...overrides,
   };
   if(c.smtpHost?.toLowerCase()==='smtp.gmail.com' && c.smtpPass)
@@ -63,8 +66,13 @@ export function config(overrides = {}) {
     throw new Error(
       "JWT_SECRET must contain at least 32 characters. Locally run npm run setup.",
     );
+<<<<<<< HEAD
   if (!["sqlite", "mongodb", "supabase", "mysql", "mariadb"].includes(c.driver))
     throw new Error("DATABASE_DRIVER must be sqlite, mongodb, supabase, mysql or mariadb.");
+=======
+  if (!["sqlite", "mongodb", "supabase"].includes(c.driver))
+    throw new Error("DATABASE_DRIVER must be sqlite, mongodb or supabase.");
+>>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
   if (c.driver === "supabase") {
     if ([c.supabaseDatabaseUrl,c.supabaseUrl,c.supabaseSecretKey].some(v => /REPLACE_|PROJECT_REF|POOLER_HOST|URL_ENCODED_DATABASE_PASSWORD/.test(v || "")))
       throw new Error("Replace the Supabase example values with the connection details from your own project.");
@@ -92,6 +100,7 @@ export function config(overrides = {}) {
   }
   if (c.driver === "mongodb" && !c.mongoUri)
     throw new Error("MONGO_URI is required for MongoDB.");
+<<<<<<< HEAD
   if ((c.driver === "mysql" || c.driver === "mariadb") && !c.mysqlUrl && (!c.mysqlUser || !c.mysqlDatabase))
     throw new Error("MYSQL_USER and MYSQL_DATABASE (or MYSQL_URL) are required for MariaDB/MySQL.");
   if (
@@ -104,6 +113,18 @@ export function config(overrides = {}) {
   if (
     c.production &&
     [c.secret, c.adminEmail, c.adminPassword, c.mongoUri, c.supabaseDatabaseUrl, c.supabaseSecretKey, c.mysqlPassword, c.mysqlUrl].some(
+=======
+  if (
+    c.production &&
+    (!["mongodb", "supabase"].includes(c.driver) || c.seedDemo || !c.appUrl.startsWith("https://"))
+  )
+    throw new Error(
+      "Production requires Supabase (or legacy MongoDB), an HTTPS APP_URL, and SEED_DEMO=false.",
+    );
+  if (
+    c.production &&
+    [c.secret, c.adminEmail, c.adminPassword, c.mongoUri, c.supabaseDatabaseUrl, c.supabaseSecretKey].some(
+>>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
       (v) => typeof v === "string" && /^(REPLACE_|GENERATE_|CHANGE_)/.test(v),
     )
   )

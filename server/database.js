@@ -4,7 +4,10 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { MongoClient, ObjectId, Binary } from "mongodb";
 import { openSupabaseDatabase } from "./supabase-database.js";
+<<<<<<< HEAD
 import { openMysqlDatabase } from "./mysql-database.js";
+=======
+>>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
 
 export const newId = () => randomBytes(12).toString("hex");
 const collections = new Set([
@@ -41,9 +44,14 @@ function matches(row, query) {
     return current === val;
   });
 }
+<<<<<<< HEAD
 export async function openDatabase(c, driverOptions = {}) {
   if (c.driver === "supabase") return openSupabaseDatabase(c, driverOptions);
   if (c.driver === "mysql" || c.driver === "mariadb") return openMysqlDatabase(c, driverOptions);
+=======
+export async function openDatabase(c) {
+  if (c.driver === "supabase") return openSupabaseDatabase(c);
+>>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
   const context = new AsyncLocalStorage();
   let client,
     mongo,

@@ -19,6 +19,7 @@ function starting(req, res) {
   res.end("R Racer is starting. Please refresh in a few seconds.");
 }
 
+<<<<<<< HEAD
 // Plain-English hints for the most common database configuration mistakes.
 function startupHint(e, c) {
   const message = String(e?.message || "");
@@ -33,6 +34,11 @@ function startupHint(e, c) {
       return "MariaDB connection timed out or host could not be resolved. Check MYSQL_HOST in your environment variables.";
     return "";
   }
+=======
+// Plain-English hints for the most common Supabase configuration mistakes.
+function startupHint(e, c) {
+  const message = String(e?.message || "");
+>>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
   const dbHost = (() => { try { return new URL(c.supabaseDatabaseUrl).hostname; } catch { return ""; } })();
   if (c.driver !== "supabase") return "";
   if (/^db\..+\.supabase\.co$/.test(dbHost) && (["ENOTFOUND", "ENETUNREACH", "EHOSTUNREACH", "ETIMEDOUT", "ECONNREFUSED"].includes(e?.code) || /timeout/i.test(message)))

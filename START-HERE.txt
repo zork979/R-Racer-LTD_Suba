@@ -1,0 +1,72 @@
+R RACER LTD — SUPABASE EDITION 3.0
+
+YOUR WEBSITE HAS BEEN UPDATED FOR SUPABASE + HOSTINGER.
+You must still create a Supabase project and add YOUR connection values.
+This download does not contain working Supabase credentials.
+
+1. INSTALL AND EXTRACT
+   Install Node.js 24 from https://nodejs.org/en/download
+   Extract the entire ZIP. Open rracer-redesign (contains package.json).
+   Open Command Prompt here and run:
+     npm.cmd ci
+     npm.cmd run setup
+
+2. CREATE YOUR SUPABASE PROJECT
+   Go to https://supabase.com/dashboard and create a project.
+   Save its database password.
+   Copy the Session pooler PostgreSQL URI, project URL and secret API key.
+
+3. CONFIGURE SUPABASE LOCALLY
+     copy supabase.env.example .env.supabase
+     notepad .env.supabase
+   Replace the three Supabase placeholders with YOUR values.
+   Keep your original .env; it contains your existing local configuration.
+
+4. CREATE TABLES AND MOVE YOUR EXISTING DATA
+   Stop the old server first. Then run:
+     npm.cmd run supabase:setup
+     npm.cmd run supabase:migrate -- --dry-run
+     npm.cmd run supabase:migrate
+     npm.cmd run supabase:check
+
+   Import BEFORE starting the website on Supabase.
+   Existing accounts, car IDs, galleries and enquiry history are preserved.
+   Sign in again after migration; existing passwords remain valid.
+   Migration refuses to overwrite a populated destination.
+
+5. RUN WITH SUPABASE
+     npm.cmd run start:supabase
+   Open http://localhost:8000
+   /api/health should say database: supabase.
+   Test your existing admin login, cars and all photos.
+
+6. DEPLOY TO HOSTINGER
+   Use the clean ZIP already included here:
+     release/R-Racer-Hostinger-Upload.zip
+   Choose a Hostinger plan that supports Node.js Web Apps.
+   Choose Express, Node 24, build script build, entry server/index.js.
+   Add production environment values from deployment/hostinger.env.example
+   in hPanel. Use the SAME Supabase project and a new JWT_SECRET.
+
+   After changing code, regenerate the clean ZIP:
+     npm.cmd run build
+     npm.cmd run hostinger:package
+
+READ THESE GUIDES IN ORDER:
+   docs/SUPABASE-SETUP.md  — exact credential, database and migration steps
+   docs/HOSTINGER.md      — hPanel settings, domain, HTTPS and verification
+   docs/EMAIL-AND-CONTACT.md — email recipient and customer Send step
+
+Supabase Free includes limited database, Storage and bandwidth quotas.
+It can pause after inactivity. Check the setup guide/current pricing.
+Hostinger still needs a Node.js-capable plan; static/PHP hosting is not enough.
+
+The full archive includes private local configuration and customer data.
+Keep it private. Upload only the CLEAN hosting ZIP to Hostinger.
+
+For offline use without Supabase, your original SQLite database is retained:
+   double-click start-local.cmd, then open http://localhost:8000.
+Local SQLite and Supabase are independent after the one-time migration.
+
+If you have newer data on your computer, preserve that latest .env and entire
+ data folder before migrating. Do not replace newer records with this snapshot.

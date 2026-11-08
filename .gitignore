@@ -1,0 +1,13 @@
+node_modules/
+.env
+data/
+backups/
+test-output/
+*.log
+
+.env.*
+!.env.example
+!*.env.example
+*.pem
+*.crt
+release/
