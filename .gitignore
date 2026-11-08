@@ -10,4 +10,10 @@ test-output/
 !*.env.example
 *.pem
 *.crt
+*.sqlite
+*.sql.gz
+*.sql
+!mariadb/schema.sql
+!supabase/migrations/*.sql
+.maintenance
 release/

@@ -8,10 +8,7 @@ import sharp from "sharp";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
-<<<<<<< HEAD
 import { existsSync } from "node:fs";
-=======
->>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createMailTransport, emailSetup } from "./email-config.js";
@@ -48,17 +45,12 @@ const safeUser = (u) => ({
 const duplicate = (e) =>
   e.code === "23505" ||
   e.code === 11000 ||
-<<<<<<< HEAD
   e.code === "ER_DUP_ENTRY" ||
   e.errno === 1062 ||
   e.sqlState === "23000" ||
   String(e.code).startsWith("SQLITE_CONSTRAINT") ||
   e.message?.includes("UNIQUE constraint") ||
   e.message?.includes("Duplicate entry");
-=======
-  String(e.code).startsWith("SQLITE_CONSTRAINT") ||
-  e.message?.includes("UNIQUE constraint");
->>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
 const cookieValue = (req) =>
   req.headers.cookie
     ?.split(";")
@@ -93,7 +85,6 @@ export function createApp(db, c) {
     }),
   );
   app.use(express.json({ limit: "128kb" }));
-<<<<<<< HEAD
 
   const isMaintenance = () =>
     Boolean(
@@ -156,8 +147,6 @@ export function createApp(db, c) {
     }
     next();
   });
-=======
->>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
   app.use((req, res, next) => {
     if (req.path.startsWith("/api")) res.set("Cache-Control", "no-store");
     if (

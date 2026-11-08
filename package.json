@@ -26,16 +26,12 @@
     "supabase:backup": "node scripts/supabase-backup.js",
     "start:supabase": "node scripts/start-supabase.js",
     "hostinger:package": "node scripts/package-hostinger.js",
-<<<<<<< HEAD
     "test:supabase": "node scripts/test-supabase.js",
     "mariadb:export": "node scripts/mariadb-export.js",
     "mariadb:verify": "node scripts/mariadb-verify.js",
     "maintenance:on": "node scripts/maintenance-mode.js on",
     "maintenance:off": "node scripts/maintenance-mode.js off",
     "maintenance:status": "node scripts/maintenance-mode.js status"
-=======
-    "test:supabase": "node scripts/test-supabase.js"
->>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.1",
@@ -50,10 +46,7 @@
     "lucide-react": "0.562.0",
     "mongodb": "6.21.0",
     "multer": "2.4.0",
-<<<<<<< HEAD
     "mysql2": "^3.24.6",
-=======
->>>>>>> 231b3abb258f3785a26efd7d4c2d7927737f7982
     "nodemailer": "10.0.10",
     "pg": "8.23.0",
     "react": "19.2.3",

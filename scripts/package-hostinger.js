@@ -4,14 +4,14 @@ import { zipSync } from 'fflate';
 import { root } from '../server/config.js';
 
 // An explicit allowlist prevents private local files from entering a hosting upload.
-const directories=['src','server','scripts','public','legacy-uploads','dist','supabase'];
+const directories=['src','server','scripts','public','legacy-uploads','dist','supabase','mariadb'];
 const files=['package.json','package-lock.json','index.html','vite.config.js'];
 const archive={};
 async function add(relative) {
   const full=path.join(root,relative);
   for(const entry of await readdir(full,{withFileTypes:true})) {
     if(entry.isSymbolicLink())throw new Error('Refusing to package a symbolic link.');
-    if(entry.name.startsWith('.')||/\.(pem|key|crt|sqlite|db|log|zip)$/i.test(entry.name))continue;
+    if(entry.name.startsWith('.')||/\.(pem|key|crt|sqlite|db|log|zip|gz|sql)$/i.test(entry.name))continue;
     const name=path.posix.join(relative,entry.name);
     if(entry.isDirectory())await add(name);else archive[name]=new Uint8Array(await readFile(path.join(root,name)));
   }
