@@ -15,6 +15,11 @@ function starting(req, res) {
   res.statusCode = 503;
   res.setHeader("Retry-After", "5");
   res.setHeader("Cache-Control", "no-store");
+  if ((req.url || "").startsWith("/api/") || req.url === "/api") {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.end(JSON.stringify({ message: "R Racer is starting. Please refresh in a few seconds." }));
+    return;
+  }
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.end("R Racer is starting. Please refresh in a few seconds.");
 }

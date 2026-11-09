@@ -263,12 +263,12 @@ export function createApp(db, c) {
       target,
       createdAt: now(),
     });
-  async function hydrate(car) {
+  async function hydrate(car, imageMap) {
     if (!car) return null;
     const images = (
       await Promise.all(
         (car.images || []).map((i) =>
-          typeof i === "object" && i.url ? i : db.get("images", String(i)),
+          typeof i === "object" && i.url ? i : imageMap instanceof Map ? imageMap.get(String(i)) || null : db.get("images", String(i)),
         ),
       )
     ).filter(Boolean);
@@ -550,8 +550,12 @@ export function createApp(db, c) {
     const total = cars.length;
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 100));
     const page = Math.max(1, parseInt(req.query.page) || 1);
+    const slice = cars.slice((page - 1) * limit, page * limit);
+    const imageMap = slice.length
+      ? new Map((await db.find("images")).map((img) => [img._id, img]))
+      : null;
     const result = await Promise.all(
-      cars.slice((page - 1) * limit, page * limit).map(hydrate),
+      slice.map((car) => hydrate(car, imageMap)),
     );
     res.set("X-Total-Count", String(total));
     res.json(
