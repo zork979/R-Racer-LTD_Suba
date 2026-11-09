@@ -3,8 +3,14 @@ export const setCsrf=value=>{csrf=value||'';};
 function fallbackMessage(status){
   if(status===413)return 'The upload is too large for the server limit (HTTP 413). Please try a smaller photo.';
   if(status===403)return 'The request was blocked by the server security check (HTTP 403). Refresh the page and try again.';
+  if(status===429)return 'Too many requests were sent in a short time (HTTP 429). Wait a few seconds and try again.';
   if(status===502||status===503||status===504)return `The server is temporarily busy or restarting (HTTP ${status}). Please try again.`;
   return status?`The server returned an unexpected response (HTTP ${status}).`:'The server returned an unexpected response.';
+}
+function retryAfterMs(response){
+  const raw=response.headers?.get?.('Retry-After');
+  const sec=Number(raw);
+  return Number.isFinite(sec)&&sec>0?Math.min(15000,Math.ceil(sec*1000)):0;
 }
 export async function api(path,options={}) {
   const form=options.body instanceof FormData;
@@ -16,9 +22,10 @@ export async function api(path,options={}) {
   if(!parsed||data===null||typeof data!=='object'){
     const error=new Error(fallbackMessage(response.status));
     error.status=response.status;
+    error.retryAfter=retryAfterMs(response);
     throw error;
   }
-  if(!response.ok){const error=new Error(data.message||'Unable to complete this request.');error.status=response.status;throw error;}
+  if(!response.ok){const error=new Error(data.message||'Unable to complete this request.');error.status=response.status;error.retryAfter=retryAfterMs(response);throw error;}
   return data;
 }
 export const money=value=>new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',minimumFractionDigits:0,maximumFractionDigits:2}).format(value||0);

@@ -131,3 +131,28 @@ export async function optimiseImageFile(
     canvas.height = 0;
   }
 }
+
+export function createUploadBatches(
+  items,
+  { maxFiles = 4, maxBytes = 1500 * 1024 } = {},
+) {
+  const batches = [];
+  let current = [];
+  let currentBytes = 0;
+  for (const item of items || []) {
+    const size = Number(item?.ready?.size ?? item?.size ?? 0);
+    if (
+      current.length > 0 &&
+      (current.length >= maxFiles || currentBytes + size > maxBytes)
+    ) {
+      batches.push(current);
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(item);
+    currentBytes += size;
+  }
+  if (current.length) batches.push(current);
+  return batches;
+}
+

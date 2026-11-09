@@ -28,7 +28,11 @@ import {
 } from "lucide-react";
 import { Logo } from "./App";
 import { api, money, day } from "./api";
-import { normalizeImageType, optimiseImageFile } from "./image-upload";
+import {
+  createUploadBatches,
+  normalizeImageType,
+  optimiseImageFile,
+} from "./image-upload";
 import {
   useApp,
   useResource,
@@ -589,11 +593,40 @@ function VehicleEditor({ car, onClose, onSaved }) {
     setUploading(true);
     const failed = [];
     let stopRemaining = false;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    async function sendBatch(batch, batchLabel) {
+      let lastError = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (attempt > 0) {
+            const defaultWait =
+              lastError?.status === 429 ? 2500 * attempt : 1200 * attempt;
+            const waitMs = Math.max(defaultWait, lastError?.retryAfter || 0);
+            setProgress(
+              lastError?.status === 429
+                ? `Server rate limit reached — waiting to retry ${batchLabel}…`
+                : `Retrying ${batchLabel}…`,
+            );
+            await sleep(waitMs);
+          }
+          setProgress(`Uploading ${batchLabel}…`);
+          const fd = new FormData();
+          for (const item of batch) fd.append("images", item.ready);
+          return await api("/upload/images", { method: "POST", body: fd });
+        } catch (err) {
+          lastError = err;
+          const transient =
+            !err.status || [408, 429, 502, 503, 504].includes(err.status);
+          if (!transient || attempt === 2) throw err;
+        }
+      }
+      throw lastError;
+    }
     try {
-      for (let i = 0; i < selected.length && !stopRemaining; i++) {
+      const prepared = [];
+      for (let i = 0; i < selected.length; i++) {
         const raw = selected[i];
-        const label = `${i + 1} of ${selected.length}`;
-        setProgress(`Optimising and uploading ${label}…`);
+        setProgress(`Optimising ${i + 1} of ${selected.length}…`);
         let ready = raw;
         try {
           ready = await optimiseImageFile(raw);
@@ -611,45 +644,69 @@ function VehicleEditor({ car, onClose, onSaved }) {
             lastModified: ready.lastModified || Date.now(),
           });
         }
-        const send = () => {
-          const fd = new FormData();
-          fd.append("images", ready);
-          return api("/upload/images", { method: "POST", body: fd });
-        };
-        let uploaded = null;
-        let lastError = null;
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            if (attempt > 0) {
-              setProgress(`Retrying ${label}…`);
-              await new Promise((r) => setTimeout(r, 1200));
+        prepared.push({ raw, ready, index: i });
+      }
+      const batches = createUploadBatches(prepared, {
+        maxFiles: 4,
+        maxBytes: 1500 * 1024,
+      });
+      let uploadedOffset = 0;
+      for (let b = 0; b < batches.length && !stopRemaining; b++) {
+        const batch = batches[b];
+        if (b > 0) await sleep(800);
+        const start = uploadedOffset + 1;
+        const end = uploadedOffset + batch.length;
+        const label =
+          batch.length === 1
+            ? `${start} of ${prepared.length}`
+            : `${start}–${end} of ${prepared.length}`;
+        try {
+          const d = await sendBatch(batch, label);
+          setImages((imgs) => [...imgs, ...d.images]);
+          setNewImages((imgs) => [...imgs, ...d.images]);
+        } catch (err) {
+          if (batch.length > 1 && ![401, 403, 429].includes(err.status)) {
+            for (const item of batch) {
+              if (stopRemaining) break;
+              try {
+                const single = await sendBatch(
+                  [item],
+                  `${item.index + 1} of ${prepared.length}`,
+                );
+                setImages((imgs) => [...imgs, ...single.images]);
+                setNewImages((imgs) => [...imgs, ...single.images]);
+              } catch (singleErr) {
+                failed.push({
+                  name: item.raw.name || `image ${item.index + 1}`,
+                  error: singleErr,
+                });
+                if ([401, 403, 429].includes(singleErr.status)) {
+                  stopRemaining = true;
+                }
+              }
             }
-            uploaded = await send();
-            lastError = null;
-            break;
-          } catch (err) {
-            lastError = err;
-            const transient =
-              !err.status || [408, 429, 502, 503, 504].includes(err.status);
-            if (!transient || attempt === 1) break;
+          } else {
+            const firstItem = batch[0];
+            failed.push({
+              name:
+                batch.length === 1
+                  ? firstItem.raw.name || `image ${firstItem.index + 1}`
+                  : `${batch.length} photos (starting with ${firstItem.raw.name || `image ${firstItem.index + 1}`})`,
+              error: err,
+            });
+            if ([401, 403, 429].includes(err.status)) {
+              stopRemaining = true;
+            }
           }
         }
-        if (uploaded) {
-          setImages((imgs) => [...imgs, ...uploaded.images]);
-          setNewImages((imgs) => [...imgs, ...uploaded.images]);
-        } else if (lastError) {
-          failed.push({ name: raw.name || `image ${i + 1}`, error: lastError });
-          if ([401, 403, 429].includes(lastError.status)) {
-            stopRemaining = true;
-          }
-        }
+        uploadedOffset += batch.length;
       }
       if (failed.length) {
         const first = failed[0];
         const detail =
           failed.length === 1
             ? `${first.name}: ${first.error.message}`
-            : `${failed.length} photos failed (first error on ${first.name}: ${first.error.message}).`;
+            : `${failed.length} photo error(s) (first on ${first.name}: ${first.error.message}).`;
         setError(`${detail} Images already uploaded are kept in the gallery.`);
       }
     } finally {

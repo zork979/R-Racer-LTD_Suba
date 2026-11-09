@@ -196,7 +196,7 @@ export function createApp(db, c) {
   app.use("/api", limiter(600, 60000));
   const authLimit = limiter(30, 15 * 60000),
     contactLimit = limiter(12, 15 * 60000),
-    uploadLimit = limiter(100, 15 * 60000);
+    uploadLimit = limiter(250, 15 * 60000);
   async function auth(req, res, next) {
     let payload;
     try {

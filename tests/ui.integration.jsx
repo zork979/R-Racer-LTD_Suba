@@ -14,7 +14,7 @@ import {initialise} from '../server/seed.js';
 import {createApp} from '../server/app.js';
 import App from '../src/App.jsx';
 import {setCsrf, api} from '../src/api.js';
-import {normalizeImageType} from '../src/image-upload.js';
+import {createUploadBatches, normalizeImageType} from '../src/image-upload.js';
 
 const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'http://localhost:8000'});
 Object.assign(globalThis,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,HTMLDialogElement:dom.window.HTMLDialogElement,MutationObserver:dom.window.MutationObserver,FormData:dom.window.FormData});
@@ -126,10 +126,13 @@ test('React workflows against the real local API (DOM integration, not visual br
       assert.equal(normalizeImageType({name:'photo.JPG',type:''}),'image/jpeg');
       assert.equal(normalizeImageType({name:'photo.jpg',type:'image/jpg'}),'image/jpeg');
       assert.equal(normalizeImageType({name:'bad.svg',type:'image/svg+xml'}),'image/svg+xml');
+      assert.deepEqual(createUploadBatches([{ready:{size:500}},{ready:{size:600}},{ready:{size:600}},{ready:{size:400}}],{maxFiles:3,maxBytes:1200}).map(b=>b.length),[2,2]);
       const prevFetch=globalThis.fetch;
       try{
         globalThis.fetch=async()=>new Response('<html>413 Too Large</html>',{status:413,headers:{'Content-Type':'text/html'}});
         await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===413&&/HTTP 413/.test(err.message));
+        globalThis.fetch=async()=>new Response('<html>Rate limit</html>',{status:429,headers:{'Content-Type':'text/html','Retry-After':'3'}});
+        await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===429&&/HTTP 429/.test(err.message)&&err.retryAfter===3000);
         globalThis.fetch=async()=>new Response('<html>Unexpected</html>',{status:200,headers:{'Content-Type':'text/html'}});
         await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===200&&/HTTP 200/.test(err.message));
       }finally{globalThis.fetch=prevFetch;}
