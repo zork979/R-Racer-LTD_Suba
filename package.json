@@ -24,6 +24,7 @@
     "supabase:migrate": "node scripts/supabase-migrate.js",
     "supabase:check": "node scripts/supabase-check.js",
     "supabase:backup": "node scripts/supabase-backup.js",
+    "supabase:phpmyadmin": "node scripts/supabase-to-phpmyadmin.js",
     "start:supabase": "node scripts/start-supabase.js",
     "hostinger:package": "node scripts/package-hostinger.js",
     "test:supabase": "node scripts/test-supabase.js",

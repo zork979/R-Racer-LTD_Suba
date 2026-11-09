@@ -101,7 +101,6 @@ export function mysqlOptions(c) {
     waitForConnections: true,
     connectionLimit: c.mysqlPoolMax || 10,
     queueLimit: 0,
-    maxAllowedPacket: 64 * 1024 * 1024,
     timezone: "+00:00",
     charset: "utf8mb4",
     supportBigNumbers: true,

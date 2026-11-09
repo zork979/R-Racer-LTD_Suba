@@ -41,6 +41,7 @@ test("MySQL/MariaDB database adapter unit test suite", async (t) => {
     assert.equal(fromFields.database, "u911703995_rracer");
     assert.equal(fromFields.connectionLimit, 7);
     assert.deepEqual(fromFields.ssl, { rejectUnauthorized: false });
+    assert.equal("maxAllowedPacket" in fromFields, false);
 
     const fromUrl = mysqlOptions({
       mysqlUrl: "mysql://custom_user:custom_pass@db.internal:3307/custom_rracer?ssl=true",
@@ -51,6 +52,7 @@ test("MySQL/MariaDB database adapter unit test suite", async (t) => {
     assert.equal(fromUrl.password, "custom_pass");
     assert.equal(fromUrl.database, "custom_rracer");
     assert.deepEqual(fromUrl.ssl, { rejectUnauthorized: false });
+    assert.equal("maxAllowedPacket" in fromUrl, false);
   });
 
   await t.test("buildWhere constructs valid parameterized SQL for complex queries", () => {
