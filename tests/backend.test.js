@@ -65,6 +65,11 @@ test('Dealership API integration suite',async t=>{
         const savedBytes=await request({},res.images[0].url.slice(4));
         assert.equal((await sharp(savedBytes).metadata()).format,'webp');
       }
+
+      const bulk50=new FormData();
+      for(let i=0;i<50;i++)bulk50.append('images',new Blob([jpeg],{type:'image/jpeg'}),`bulk-${i}.jpg`);
+      const bulkRes=await request(admin,'/upload/images','POST',bulk50,201);
+      assert.equal(bulkRes.images.length,50);
     });
     await t.test('fake image files and oversized uploads are rejected',async()=>{
       const f=new FormData();f.append('images',new Blob(['not-an-image'],{type:'image/jpeg'}),'bad.jpg');await request(admin,'/upload/images','POST',f,400);

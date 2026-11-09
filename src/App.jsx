@@ -43,7 +43,7 @@ const defaults = {
   hours: "Viewings and collection by appointment",
   whatsapp: "447400020754",
   tagline: "Good cars. Great journeys.",
-  maxImages: 30,
+  maxImages: 50,
   maxImageMB: 10,
 };
 export function Logo({ variant = "header" }) {

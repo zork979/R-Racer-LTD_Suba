@@ -90,14 +90,48 @@ export function Empty({ title = "Nothing here yet", children, to, label }) {
   );
 }
 export function Img({ src, alt, ...rest }) {
+  const target = src || "/placeholder.svg";
+  const [state, setState] = useState({
+    target,
+    attempt: 0,
+    waiting: false,
+    failed: false,
+  });
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    clearTimeout(timerRef.current);
+    setState({ target, attempt: 0, waiting: false, failed: false });
+    return () => clearTimeout(timerRef.current);
+  }, [target]);
+
+  const current =
+    state.target === target
+      ? state
+      : { target, attempt: 0, waiting: false, failed: false };
+
+  function handleError() {
+    const retryable = typeof target === "string" && target.startsWith("/api/media/");
+    if (!retryable || current.attempt >= 3) {
+      setState({ target, attempt: current.attempt, waiting: false, failed: true });
+      return;
+    }
+    const nextAttempt = current.attempt + 1;
+    const delay = 2500 * nextAttempt + Math.floor(Math.random() * 1000);
+    setState({ target, attempt: current.attempt, waiting: true, failed: false });
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setState({ target, attempt: nextAttempt, waiting: false, failed: false });
+    }, delay);
+  }
+
+  const showPlaceholder = !src || current.failed || current.waiting;
   return (
     <img
-      src={src || "/placeholder.svg"}
+      key={showPlaceholder ? "placeholder" : `${target}:${current.attempt}`}
+      src={showPlaceholder ? "/placeholder.svg" : target}
       alt={alt}
-      onError={(e) => {
-        e.currentTarget.onerror = null;
-        e.currentTarget.src = "/placeholder.svg";
-      }}
+      onError={showPlaceholder ? undefined : handleError}
       {...rest}
     />
   );

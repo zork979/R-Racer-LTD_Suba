@@ -98,14 +98,14 @@ export async function optimiseImageFile(
 
     ctx.drawImage(decoded.source, 0, 0, targetW, targetH);
 
-    let blob = await canvasToBlob(canvas, "image/webp", 0.9);
+    let blob = await canvasToBlob(canvas, "image/webp", 0.84);
     if (!blob || blob.type !== "image/webp" || blob.size > 900 * 1024) {
       ctx.save();
       ctx.globalCompositeOperation = "destination-over";
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, targetW, targetH);
       ctx.restore();
-      const jpegBlob = await canvasToBlob(canvas, "image/jpeg", 0.88);
+      const jpegBlob = await canvasToBlob(canvas, "image/jpeg", 0.85);
       if (jpegBlob && (!blob || jpegBlob.size < blob.size)) {
         blob = jpegBlob;
       }
@@ -134,7 +134,7 @@ export async function optimiseImageFile(
 
 export function createUploadBatches(
   items,
-  { maxFiles = 4, maxBytes = 1500 * 1024 } = {},
+  { maxFiles = 25, maxBytes = 4 * 1024 * 1024 } = {},
 ) {
   const batches = [];
   let current = [];

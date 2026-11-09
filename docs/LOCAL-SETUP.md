@@ -52,7 +52,7 @@ You can instead double-click **start-local.cmd**. It installs the locked depende
 6. Use **Set cover** or the left/right arrows to arrange photos. Use **×** to remove a photo.
 7. Select **Save vehicle**. Reopen the car on the public website and check its thumbnails.
 
-Default limits: 30 images per car, 10 MB per source image. JPEG, PNG and WebP are supported. Increase `MAX_IMAGES_PER_CAR` in `.env` if needed, up to 100; restart the server. A phone may produce HEIC files: convert those to JPEG first.
+Default limits: 50 images per car, 10 MB per source image. JPEG, PNG and WebP are supported. Increase `MAX_IMAGES_PER_CAR` in `.env` if needed, up to 100; restart the server. A phone may produce HEIC files: convert those to JPEG first.
 
 These limits protect processing capacity. The total number of photos is also limited by available database storage; this is not unlimited storage.
 

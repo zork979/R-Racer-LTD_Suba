@@ -83,7 +83,7 @@ Use `deployment/hostinger.env.example` as the checklist, replacing every placeho
 | `ADMIN_PASSWORD` | Leave empty for an already-migrated admin; only needed when creating a new admin in a new database |
 | `SEED_DEMO` | `false` |
 | `TRUST_PROXY` | `1` for Hostinger's reverse proxy; adjust only if your actual proxy setup differs |
-| `MAX_IMAGES_PER_CAR` | `30` (can be set up to 100) |
+| `MAX_IMAGES_PER_CAR` | `50` (can be set up to 100) |
 | `MAX_IMAGE_MB` | `10` (source image upload limit) |
 
 Generate a new session secret locally and paste the output into hPanel:

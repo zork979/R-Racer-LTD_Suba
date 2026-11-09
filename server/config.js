@@ -32,7 +32,7 @@ export function config(overrides = {}) {
     trustProxy: Number(process.env.TRUST_PROXY || 0),
     maxImages: Math.min(
       100,
-      Math.max(1, Number(process.env.MAX_IMAGES_PER_CAR || 30)),
+      Math.max(1, Number(process.env.MAX_IMAGES_PER_CAR || 50)),
     ),
     maxImageMB: Math.min(
       20,

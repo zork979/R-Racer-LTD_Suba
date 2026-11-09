@@ -193,10 +193,10 @@ export function createApp(db, c) {
       legacyHeaders: false,
       message: { message: "Too many requests. Please try again shortly." },
     });
-  app.use("/api", limiter(600, 60000));
+  app.use("/api", limiter(2000, 60000));
   const authLimit = limiter(30, 15 * 60000),
     contactLimit = limiter(12, 15 * 60000),
-    uploadLimit = limiter(250, 15 * 60000);
+    uploadLimit = limiter(500, 15 * 60000);
   async function auth(req, res, next) {
     let payload;
     try {
@@ -661,7 +661,7 @@ export function createApp(db, c) {
   ]);
   const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: c.maxImageMB * 1024 * 1024, files: 5, fields: 5 },
+    limits: { fileSize: c.maxImageMB * 1024 * 1024, files: 50, fields: 50 },
     fileFilter: (req, file, cb) => {
       if (allowedUploadMimes.has(String(file.mimetype || "").toLowerCase()))
         cb(null, true);
@@ -714,7 +714,7 @@ export function createApp(db, c) {
     auth,
     admin,
     uploadLimit,
-    upload.array("images", 5),
+    upload.array("images", 50),
     async (req, res) => {
       if (!req.files?.length) fail("Select JPEG, PNG or WebP images.");
       const images = [];
@@ -1060,7 +1060,7 @@ export function createApp(db, c) {
       (err instanceof multer.MulterError ? 400 : duplicate(err) ? 409 : 500);
     const message =
       err instanceof multer.MulterError
-        ? `Image upload failed. Use up to 5 images per request, ${c.maxImageMB} MB each.`
+        ? `Image upload failed. Use up to 50 images per request, ${c.maxImageMB} MB each.`
         : status === 500
           ? "Something went wrong. Please try again."
           : duplicate(err)

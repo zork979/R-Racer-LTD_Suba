@@ -596,11 +596,11 @@ function VehicleEditor({ car, onClose, onSaved }) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     async function sendBatch(batch, batchLabel) {
       let lastError = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
+      for (let attempt = 0; attempt < 4; attempt++) {
         try {
           if (attempt > 0) {
             const defaultWait =
-              lastError?.status === 429 ? 2500 * attempt : 1200 * attempt;
+              lastError?.status === 429 ? 4000 * attempt : 1500 * attempt;
             const waitMs = Math.max(defaultWait, lastError?.retryAfter || 0);
             setProgress(
               lastError?.status === 429
@@ -617,7 +617,7 @@ function VehicleEditor({ car, onClose, onSaved }) {
           lastError = err;
           const transient =
             !err.status || [408, 429, 502, 503, 504].includes(err.status);
-          if (!transient || attempt === 2) throw err;
+          if (!transient || attempt === 3) throw err;
         }
       }
       throw lastError;
@@ -647,13 +647,13 @@ function VehicleEditor({ car, onClose, onSaved }) {
         prepared.push({ raw, ready, index: i });
       }
       const batches = createUploadBatches(prepared, {
-        maxFiles: 4,
-        maxBytes: 1500 * 1024,
+        maxFiles: 25,
+        maxBytes: 4 * 1024 * 1024,
       });
       let uploadedOffset = 0;
       for (let b = 0; b < batches.length && !stopRemaining; b++) {
         const batch = batches[b];
-        if (b > 0) await sleep(800);
+        if (b > 0) await sleep(2000);
         const start = uploadedOffset + 1;
         const end = uploadedOffset + batch.length;
         const label =
@@ -666,8 +666,10 @@ function VehicleEditor({ car, onClose, onSaved }) {
           setNewImages((imgs) => [...imgs, ...d.images]);
         } catch (err) {
           if (batch.length > 1 && ![401, 403, 429].includes(err.status)) {
-            for (const item of batch) {
+            for (let k = 0; k < batch.length; k++) {
+              const item = batch[k];
               if (stopRemaining) break;
+              if (k > 0) await sleep(250);
               try {
                 const single = await sendBatch(
                   [item],
@@ -1003,7 +1005,7 @@ function VehicleEditor({ car, onClose, onSaved }) {
             <div className="editor-gallery">
               {images.map((img, i) => (
                 <div key={img._id}>
-                  <Img src={img.url} alt={`Vehicle photo ${i + 1}`} />
+                  <Img src={img.url} alt={`Vehicle photo ${i + 1}`} loading="lazy" />
                   {i === 0 && <span className="cover-label">Cover photo</span>}
                   <button
                     className="remove-photo"

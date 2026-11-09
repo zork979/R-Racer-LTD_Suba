@@ -127,12 +127,13 @@ test('React workflows against the real local API (DOM integration, not visual br
       assert.equal(normalizeImageType({name:'photo.jpg',type:'image/jpg'}),'image/jpeg');
       assert.equal(normalizeImageType({name:'bad.svg',type:'image/svg+xml'}),'image/svg+xml');
       assert.deepEqual(createUploadBatches([{ready:{size:500}},{ready:{size:600}},{ready:{size:600}},{ready:{size:400}}],{maxFiles:3,maxBytes:1200}).map(b=>b.length),[2,2]);
+      assert.deepEqual(createUploadBatches(Array.from({length:20},()=>({ready:{size:150*1024}}))).map(b=>b.length),[20]);
       const prevFetch=globalThis.fetch;
       try{
         globalThis.fetch=async()=>new Response('<html>413 Too Large</html>',{status:413,headers:{'Content-Type':'text/html'}});
         await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===413&&/HTTP 413/.test(err.message));
-        globalThis.fetch=async()=>new Response('<html>Rate limit</html>',{status:429,headers:{'Content-Type':'text/html','Retry-After':'3'}});
-        await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===429&&/HTTP 429/.test(err.message)&&err.retryAfter===3000);
+        globalThis.fetch=async()=>new Response('<html>Rate limit</html>',{status:429,headers:{'Content-Type':'text/html','Retry-After':'20'}});
+        await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===429&&/HTTP 429/.test(err.message)&&err.retryAfter===20000);
         globalThis.fetch=async()=>new Response('<html>Unexpected</html>',{status:200,headers:{'Content-Type':'text/html'}});
         await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===200&&/HTTP 200/.test(err.message));
       }finally{globalThis.fetch=prevFetch;}

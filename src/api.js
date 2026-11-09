@@ -10,7 +10,7 @@ function fallbackMessage(status){
 function retryAfterMs(response){
   const raw=response.headers?.get?.('Retry-After');
   const sec=Number(raw);
-  return Number.isFinite(sec)&&sec>0?Math.min(15000,Math.ceil(sec*1000)):0;
+  return Number.isFinite(sec)&&sec>0?Math.min(30000,Math.ceil(sec*1000)):0;
 }
 export async function api(path,options={}) {
   const form=options.body instanceof FormData;
