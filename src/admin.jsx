@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { Logo } from "./App";
 import { api, money, day } from "./api";
+import { normalizeImageType, optimiseImageFile } from "./image-upload";
 import {
   useApp,
   useResource,
@@ -575,8 +576,9 @@ function VehicleEditor({ car, onClose, onSaved }) {
     if (
       selected.some(
         (f) =>
-          !["image/jpeg", "image/png", "image/webp"].includes(f.type) ||
-          f.size > settings.maxImageMB * 1024 * 1024,
+          !["image/jpeg", "image/png", "image/webp"].includes(
+            normalizeImageType(f),
+          ) || f.size > settings.maxImageMB * 1024 * 1024,
       )
     ) {
       setError(
@@ -585,17 +587,71 @@ function VehicleEditor({ car, onClose, onSaved }) {
       return;
     }
     setUploading(true);
+    const failed = [];
+    let stopRemaining = false;
     try {
-      for (let i = 0; i < selected.length; i++) {
-        setProgress(`Optimising and uploading ${i + 1} of ${selected.length}…`);
-        const fd = new FormData();
-        fd.append("images", selected[i]);
-        const d = await api("/upload/images", { method: "POST", body: fd });
-        setImages((imgs) => [...imgs, ...d.images]);
-        setNewImages((imgs) => [...imgs, ...d.images]);
+      for (let i = 0; i < selected.length && !stopRemaining; i++) {
+        const raw = selected[i];
+        const label = `${i + 1} of ${selected.length}`;
+        setProgress(`Optimising and uploading ${label}…`);
+        let ready = raw;
+        try {
+          ready = await optimiseImageFile(raw);
+        } catch {
+          ready = raw;
+        }
+        const normalisedType = normalizeImageType(ready);
+        if (
+          normalisedType &&
+          ready.type !== normalisedType &&
+          typeof File === "function"
+        ) {
+          ready = new File([ready], ready.name || `photo-${i + 1}.jpg`, {
+            type: normalisedType,
+            lastModified: ready.lastModified || Date.now(),
+          });
+        }
+        const send = () => {
+          const fd = new FormData();
+          fd.append("images", ready);
+          return api("/upload/images", { method: "POST", body: fd });
+        };
+        let uploaded = null;
+        let lastError = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            if (attempt > 0) {
+              setProgress(`Retrying ${label}…`);
+              await new Promise((r) => setTimeout(r, 1200));
+            }
+            uploaded = await send();
+            lastError = null;
+            break;
+          } catch (err) {
+            lastError = err;
+            const transient =
+              !err.status || [408, 429, 502, 503, 504].includes(err.status);
+            if (!transient || attempt === 1) break;
+          }
+        }
+        if (uploaded) {
+          setImages((imgs) => [...imgs, ...uploaded.images]);
+          setNewImages((imgs) => [...imgs, ...uploaded.images]);
+        } else if (lastError) {
+          failed.push({ name: raw.name || `image ${i + 1}`, error: lastError });
+          if ([401, 403, 429].includes(lastError.status)) {
+            stopRemaining = true;
+          }
+        }
       }
-    } catch (e) {
-      setError(e.message + " Images already uploaded are kept in the gallery.");
+      if (failed.length) {
+        const first = failed[0];
+        const detail =
+          failed.length === 1
+            ? `${first.name}: ${first.error.message}`
+            : `${failed.length} photos failed (first error on ${first.name}: ${first.error.message}).`;
+        setError(`${detail} Images already uploaded are kept in the gallery.`);
+      }
     } finally {
       setUploading(false);
       setProgress("");
@@ -817,8 +873,9 @@ function VehicleEditor({ car, onClose, onSaved }) {
                 accept="image/jpeg,image/png,image/webp"
                 disabled={busy || uploading}
                 onChange={(e) => {
-                  upload(e.target.files);
+                  const chosen = Array.from(e.target.files || []);
                   e.target.value = "";
+                  upload(chosen);
                 }}
               />
               {uploading ? (

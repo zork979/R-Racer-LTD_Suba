@@ -11,6 +11,11 @@ import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+
+// Keep native libvips memory and thread usage bounded on shared Node hosting (Hostinger LVE)
+// so sequential multi-image uploads do not exhaust OS thread or memory limits.
+sharp.cache(false);
+sharp.concurrency(1);
 import { createMailTransport, emailSetup } from "./email-config.js";
 import { root } from "./config.js";
 import { newId } from "./database.js";
@@ -647,11 +652,18 @@ export function createApp(db, c) {
     await audit(req, "Archived vehicle", car.title);
     res.json({ success: true });
   });
+  const allowedUploadMimes = new Set([
+    "image/jpeg",
+    "image/jpg",
+    "image/pjpeg",
+    "image/png",
+    "image/webp",
+  ]);
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: c.maxImageMB * 1024 * 1024, files: 5, fields: 5 },
     fileFilter: (req, file, cb) => {
-      if (["image/jpeg", "image/png", "image/webp"].includes(file.mimetype))
+      if (allowedUploadMimes.has(String(file.mimetype || "").toLowerCase()))
         cb(null, true);
       else {
         const error = new Error(
@@ -663,19 +675,24 @@ export function createApp(db, c) {
     },
   });
   async function saveImage(file) {
+    if (!file?.buffer?.length)
+      fail("This file is not a supported JPEG, PNG or WebP image.");
     let bytes;
     try {
-      const image = sharp(file.buffer, { limitInputPixels: 40000000 });
-      const meta = await image.metadata();
+      const meta = await sharp(file.buffer, {
+        limitInputPixels: 65000000,
+      }).metadata();
       if (!["jpeg", "png", "webp"].includes(meta.format))
         fail("Unsupported image format.");
-      bytes = await image
+      bytes = await sharp(file.buffer, { limitInputPixels: 65000000 })
         .rotate()
         .resize(1920, 1440, { fit: "inside", withoutEnlargement: true })
         .webp({ quality: 82 })
         .toBuffer();
     } catch {
       fail("This file is not a supported JPEG, PNG or WebP image.");
+    } finally {
+      file.buffer = null;
     }
     if (bytes.length > 4 * 1024 * 1024)
       fail("The optimised image is too large. Please choose a smaller image.");

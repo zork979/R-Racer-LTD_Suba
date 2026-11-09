@@ -13,14 +13,15 @@ import {openDatabase} from '../server/database.js';
 import {initialise} from '../server/seed.js';
 import {createApp} from '../server/app.js';
 import App from '../src/App.jsx';
-import {setCsrf} from '../src/api.js';
+import {setCsrf, api} from '../src/api.js';
+import {normalizeImageType} from '../src/image-upload.js';
 
 const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'http://localhost:8000'});
 Object.assign(globalThis,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,HTMLDialogElement:dom.window.HTMLDialogElement,MutationObserver:dom.window.MutationObserver,FormData:dom.window.FormData});
 Object.defineProperty(globalThis,'navigator',{value:dom.window.navigator,configurable:true});
 window.scrollTo=()=>{};
 const emailWindows=[];
-let blockEmailWindow=false, failNextEnquiry=false;
+let blockEmailWindow=false, failNextEnquiry=false, transientUpload503Count=0;
 window.open=(url,target)=>{
   assert.equal(url,'about:blank');assert.equal(target,'_blank');
   if(blockEmailWindow)return null;
@@ -46,6 +47,10 @@ test('React workflows against the real local API (DOM integration, not visual br
     if(failNextEnquiry && String(input).endsWith('/enquiries')){
       failNextEnquiry=false;
       return new Response(JSON.stringify({message:'Please try your enquiry again.'}),{status:400,headers:{'Content-Type':'application/json'}});
+    }
+    if(transientUpload503Count>0 && String(input).endsWith('/upload/images')){
+      transientUpload503Count--;
+      return new Response('<html><body>503 Service Unavailable</body></html>',{status:503,headers:{'Content-Type':'text/html'}});
     }
     const requestHeaders={...options.headers,...(cookie?{Cookie:cookie}:{}),Origin:'http://localhost:8000'};
     if(body instanceof dom.window.FormData){
@@ -116,6 +121,35 @@ test('React workflows against the real local API (DOM integration, not visual br
       fireEvent.click(screen.getByText('Save vehicle',{selector:'button'}));await waitFor(()=>assert.equal(document.querySelector('dialog[open]')===null,true),{timeout:5000});
       const saved=(await db.find('cars',{title:'UI Gallery Car'}))[0];assert.equal(saved.images.length,2);const image=await db.get('images',saved.images[0]);assert.ok(second.endsWith(image.url));
       assert.equal(saved.condition,'new');assert.equal(saved.mot,'2029-07-14');
+    });
+    await t.test('vehicle editor retries transient 503 HTML uploads and keeps valid images on partial failure',async()=>{
+      assert.equal(normalizeImageType({name:'photo.JPG',type:''}),'image/jpeg');
+      assert.equal(normalizeImageType({name:'photo.jpg',type:'image/jpg'}),'image/jpeg');
+      assert.equal(normalizeImageType({name:'bad.svg',type:'image/svg+xml'}),'image/svg+xml');
+      const prevFetch=globalThis.fetch;
+      try{
+        globalThis.fetch=async()=>new Response('<html>413 Too Large</html>',{status:413,headers:{'Content-Type':'text/html'}});
+        await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===413&&/HTTP 413/.test(err.message));
+        globalThis.fetch=async()=>new Response('<html>Unexpected</html>',{status:200,headers:{'Content-Type':'text/html'}});
+        await assert.rejects(()=>api('/upload/images',{method:'POST'}),err=>err.status===200&&/HTTP 200/.test(err.message));
+      }finally{globalThis.fetch=prevFetch;}
+      const pngBytes=await sharp({create:{width:110,height:90,channels:4,background:{r:10,g:90,b:180,alpha:1}}}).png().toBuffer();
+      const webpBytes=await sharp({create:{width:110,height:90,channels:3,background:'#336699'}}).webp().toBuffer();
+      mount('/admin/cars');await screen.findByRole('heading',{name:'Your collection.'});
+      fireEvent.click(screen.getByRole('button',{name:'Add a vehicle'}));await screen.findByRole('heading',{name:'Add a vehicle'});
+      transientUpload503Count=1;
+      const input=document.querySelector('.upload-zone input');
+      fireEvent.change(input,{target:{files:[new window.File([pngBytes],'side.png',{type:'image/png'}),new window.File([webpBytes],'interior.webp',{type:'image/webp'})]}});
+      await waitFor(()=>assert.equal(document.querySelectorAll('.editor-gallery img').length,2),{timeout:5000});
+      assert.equal(transientUpload503Count,0);
+      assert.equal(document.querySelector('.vehicle-editor [role="alert"]'),null);
+      fireEvent.change(input,{target:{files:[new window.File(['not-an-image'],'corrupt.jpg',{type:'image/jpeg'}),new window.File([pngBytes],'valid-rear.png',{type:'image/png'})]}});
+      await waitFor(()=>assert.equal(document.querySelectorAll('.editor-gallery img').length,3),{timeout:5000});
+      const alert=await screen.findByRole('alert');
+      assert.match(alert.textContent,/corrupt\.jpg:/);
+      assert.match(alert.textContent,/Images already uploaded are kept in the gallery\./);
+      fireEvent.click(screen.getByRole('button',{name:'Close dialog'}));
+      await waitFor(()=>assert.equal(document.querySelector('dialog[open]')===null,true));
     });
     await t.test('editor removes an existing image and saves the remaining gallery',async()=>{
       await screen.findByRole('button',{name:'Edit UI Gallery Car'});fireEvent.click(screen.getByRole('button',{name:'Edit UI Gallery Car'}));await screen.findByRole('heading',{name:'Edit vehicle'});fireEvent.click(screen.getByLabelText('Remove photo 2'));fireEvent.click(screen.getByText('Save vehicle',{selector:'button'}));

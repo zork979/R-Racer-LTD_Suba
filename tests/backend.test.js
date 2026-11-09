@@ -51,8 +51,20 @@ test('Dealership API integration suite',async t=>{
       const another={};await request(another,'/auth/login','POST',{email:'one@example.test',password:'A-customer-password!'});
     });
     await t.test('multiple image uploads are decoded, optimised and retrievable',async()=>{
+      assert.equal(sharp.concurrency(),1);
+      assert.equal(sharp.cache().memory.max,0);
       const f=upload();f.append('images',new Blob([jpeg],{type:'image/jpeg'}),'second.jpg');photos=(await request(admin,'/upload/images','POST',f,201)).images;
       assert.equal(photos.length,2);const bytes=await request({},photos[0].url.slice(4));const meta=await sharp(bytes).metadata();assert.equal(meta.format,'webp');assert.equal(meta.width,100);
+
+      const png=await sharp({create:{width:140,height:90,channels:4,background:{r:20,g:100,b:200,alpha:0.8}}}).png().toBuffer();
+      const webp=await sharp({create:{width:120,height:80,channels:3,background:'#225588'}}).webp().toBuffer();
+      for(const [blob,name]of [[new Blob([png],{type:'image/png'}),'third.png'],[new Blob([webp],{type:'image/webp'}),'fourth.webp'],[new Blob([jpeg],{type:'image/jpg'}),'fifth.jpg']]){
+        const form=new FormData();form.append('images',blob,name);
+        const res=await request(admin,'/upload/images','POST',form,201);
+        assert.equal(res.images.length,1);
+        const savedBytes=await request({},res.images[0].url.slice(4));
+        assert.equal((await sharp(savedBytes).metadata()).format,'webp');
+      }
     });
     await t.test('fake image files and oversized uploads are rejected',async()=>{
       const f=new FormData();f.append('images',new Blob(['not-an-image'],{type:'image/jpeg'}),'bad.jpg');await request(admin,'/upload/images','POST',f,400);
